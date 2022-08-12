@@ -1,0 +1,33 @@
+Hint
+01 ARI NW Arizona Cardinals
+02 ATL NS Atlanta Falcons
+03 BAL AN Baltimore Ravens
+04 BUF AE Buffalo Bills
+05 CAR NS Carolina Panthers
+06 CHI NN Chicago Bears
+07 CIN AN Cincinnati Bengals
+08 CLE AN Cleveland Browns
+09 DAL NE Dallas Cowboys
+10 DEN AW Denver Broncos
+11 DET NN Detroit Lions,DET
+12 GBP NN Green Bay Packers
+13 HOU AS Houston Texans
+14 IND AS Indianapolis Colts
+15 JAX AS Jacksonville Jaguars
+16 KCC AW Kansas City Chiefs
+17 MIA AE Miami Dolphins
+18 MIN NN Minnesota Vikings
+19 NEP AE New England Patriots
+20 NOS NS New Orleans Saints
+21 NYG NE NY Giants
+22 NYJ AE NY Jets
+23 LVR AW Las Vegas Raiders
+24 PHI NE Philadelphia Eagles
+25 PIT AN Pittsburgh Steelers
+26 LAC AW Los Angeles Chargers
+27 SF4 NW San Francisco 49ers
+28 SEA NW Seattle Seahawks
+29 LAR NW Los Angeles Rams
+30 TBB NS Tampa Bay Buccaneers
+31 TEN AS Tennessee Titans
+32 WAS NE Washington Football
