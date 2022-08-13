@@ -56,6 +56,7 @@ void servo_change(servo_configuration sc) {
 
 void servo_shutdown() {
 	servo_change(SERVO_DOWN);
+	_delay_ms(1000);
 	TCB0.CTRLA &= ~TCB_ENABLE_bm;
 	TCB1.CTRLA &= ~TCB_ENABLE_bm;
 }
