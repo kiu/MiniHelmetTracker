@@ -31,12 +31,12 @@ uint8_t clean = 0;
 const uint8_t CLEAN_FLAG = 0x42;
 
 bool change_led_auto_tick = false;
-bool change_led_auto_value = false;
+bool led_state = true;
 
 // -------------------------------------------------------------------------------
 
 void main_change_led_auto(bool value) {
-	change_led_auto_value = value;
+	led_state = value;
 	change_led_auto_tick = true;
 }
 
@@ -129,7 +129,7 @@ void main_store_save(opmode om) {
 void main_tick() {
 	
 	if (change_led_auto_tick) {
-		led_set_auto(change_led_auto_value);
+		led_set_auto(led_state);
 		change_led_auto_tick = false;
 	}
 
@@ -262,8 +262,13 @@ ISR(RTC_PIT_vect) {
 	RTC.PITINTFLAGS = RTC_PI_bm;
 	
 	uint8_t out = b_on;
+	
 	if ((seconds & 0x01) == 1) {
 		out = b_on & ~(b_blink);
+	}
+
+	if (!led_state) {
+		out = 0x00;
 	}
 	
 	BTN_DIVISION_LED_set_level((out >> 0) & 0x01);
