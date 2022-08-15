@@ -8,7 +8,7 @@
 
 # Youtube
 
-[![MHT Video](https://img.youtube.com/vi/LY5VMEqtx_c/default.jpg)](https://youtu.be/LY5VMEqtx_c "MHT Video")
+[![MHT Video](https://img.youtube.com/vi/LY5VMEqtx_c/maxresdefault.jpg)](https://youtu.be/LY5VMEqtx_c "MHT Video")
 
 # Nitty-Gritty Details
 
