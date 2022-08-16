@@ -11,3 +11,5 @@ Checkout the [full story](https://schoar.de/tinkering/MiniHelmetTracker) or expl
 # Youtube
 
 [![MHT Video](https://img.youtube.com/vi/LY5VMEqtx_c/maxresdefault.jpg)](https://youtu.be/LY5VMEqtx_c "MHT Video")
+
+[![MHT Making](https://img.youtube.com/vi/Ac1G4HAgR_Y/maxresdefault.jpg)](https://youtu.be/Ac1G4HAgR_Y "MHT Making")
