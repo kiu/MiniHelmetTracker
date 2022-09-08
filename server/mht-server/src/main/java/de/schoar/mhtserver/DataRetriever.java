@@ -146,9 +146,13 @@ public class DataRetriever extends Thread {
 					String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
 					String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
 
-					int hs = Integer.parseInt(homeScore);
-					int as = Integer.parseInt(awayScore);
+					Integer as = toInt(awayScore);
+					Integer hs = toInt(homeScore);
 
+					if (as == null || hs == null) {
+						continue;
+					}
+					
 					if (Config.COUNT_INCOMPLETE_GAMES) {
 						if (hs == 0 && as == 0) {
 							continue;
@@ -217,8 +221,12 @@ public class DataRetriever extends Thread {
 					String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
 					String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
 
-					int hs = Integer.parseInt(homeScore);
-					int as = Integer.parseInt(awayScore);
+					Integer as = toInt(awayScore);
+					Integer hs = toInt(homeScore);
+
+					if (as == null || hs == null) {
+						continue;
+					}
 
 					if (Config.COUNT_INCOMPLETE_GAMES) {
 						if (hs == 0 && as == 0) {
@@ -250,7 +258,7 @@ public class DataRetriever extends Thread {
 			}
 		} else {
 			logger.warn("No list available for playoff season.");
-			success = false;
+			//success = false;
 		}
 
 		updateFailed = !success;
@@ -258,6 +266,17 @@ public class DataRetriever extends Thread {
 		logger.debug("...done.");
 	}
 
+	private Integer toInt(String value) {
+		if (value == null || value.trim().length() == 0) {
+			return null;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+	
 	private NodeList downloadAndParse(boolean regular) {
 		String xml = download(regular);
 		if (xml == null) {
