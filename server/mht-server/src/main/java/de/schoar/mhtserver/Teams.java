@@ -24,7 +24,7 @@ public class Teams {
 	private byte data_conference[] = new byte[72];
 	private byte data_division[] = new byte[72];
 	private byte data_playoffs[] = new byte[72];
-	
+
 	public Teams() {
 		teams.add(new Team(1, "ARI", CONFERENCE.NFC, DIVISION.NFC_WEST));
 		teams.add(new Team(2, "ATL", CONFERENCE.NFC, DIVISION.NFC_SOUTH));
@@ -81,7 +81,7 @@ public class Teams {
 	public byte[] getDataPlayoffs() {
 		return data_playoffs;
 	}
-	
+
 	public List<Team> getTeams() {
 		return teams;
 	}
@@ -136,15 +136,20 @@ public class Teams {
 				if (c != 0) {
 					return c;
 				}
-				return t1.getId().compareTo(t2.getId());
+				return t1.getAbbr().compareTo(t2.getAbbr());
 			}
 		});
+
+		logger.debug("--- League ---");
+		for (Team t : teams) {
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
 
 		int pos = 2;
 		int color = 0;
 		int matched = 0;
 
-		double lastpct = 23.42;
+		double lastpct = -3.0;
 		for (Team t : teams) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -155,7 +160,11 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_league[pos] = t.getId().byteValue();
-			data_league[pos + 35] = (byte) color;
+			if (t.getGamesPlayed() > 0) {
+				data_league[pos + 35] = (byte) color;
+			} else {
+				data_league[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
@@ -174,15 +183,23 @@ public class Teams {
 				if (c != 0) {
 					return c;
 				}
-				return t1.getId().compareTo(t2.getId());
+				return t1.getAbbr().compareTo(t2.getAbbr());
 			}
 		});
 
+		logger.debug("--- Conference AFC ---");
+		for (Team t : teams) {
+			if (!CONFERENCE.AFC.equals(t.getConference())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+	
 		pos = 2;
-		color = 34;
+		color = 35;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(CONFERENCE.AFC)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -193,7 +210,11 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_conference[pos] = t.getId().byteValue();
-			data_conference[pos + 35] = (byte) color;
+			if (t.getGamesPlayed() > 0) {
+				data_conference[pos + 35] = (byte) color;
+			} else {
+				data_conference[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
@@ -206,14 +227,22 @@ public class Teams {
 				if (c != 0) {
 					return c;
 				}
-				return t2.getId().compareTo(t1.getId());
+				return t2.getAbbr().compareTo(t1.getAbbr());
 			}
 		});
 
-		color = 0;
+		logger.debug("--- Conference NFC ---");
+		for (Team t : teams) {
+			if (!CONFERENCE.NFC.equals(t.getConference())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		color = -1;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(CONFERENCE.NFC)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -224,14 +253,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_conference[pos] = t.getId().byteValue();
-			data_conference[pos + 35] = (byte) color;
+			if (t.getGamesPlayed() > 0) {
+				data_conference[pos + 35] = (byte) color;
+			} else {
+				data_conference[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		// -------------------------------------------------------------------------------------
 
 		for (int i = 0; i < 72; i++) {
-			data_division[i] = 0;			
+			data_division[i] = 0;
 		}
 		data_division[0] = 'D';
 		data_division[71] = '\n';
@@ -243,9 +276,41 @@ public class Teams {
 				if (c != 0) {
 					return c;
 				}
-				return t1.getId().compareTo(t2.getId());
+				return t1.getAbbr().compareTo(t2.getAbbr());
 			}
 		});
+
+		logger.debug("--- Division AFC East ---");
+		for (Team t : teams) {
+			if (!DIVISION.AFC_EAST.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		logger.debug("--- Division AFC North ---");
+		for (Team t : teams) {
+			if (!DIVISION.AFC_NORTH.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		logger.debug("--- Division AFC South ---");
+		for (Team t : teams) {
+			if (!DIVISION.AFC_SOUTH.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		logger.debug("--- Division AFC West ---");
+		for (Team t : teams) {
+			if (!DIVISION.AFC_WEST.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
 
 		byte preset[] = new byte[] { 1, 18, 26, 32 };
 
@@ -253,7 +318,7 @@ public class Teams {
 		color = 4;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.AFC_EAST)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -264,14 +329,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = 4;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.AFC_NORTH)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -282,14 +351,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = 4;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.AFC_SOUTH)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -300,14 +373,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = 4;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.AFC_WEST)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -318,7 +395,11 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
@@ -331,14 +412,46 @@ public class Teams {
 				if (c != 0) {
 					return c;
 				}
-				return t2.getId().compareTo(t1.getId());
+				return t2.getAbbr().compareTo(t1.getAbbr());
 			}
 		});
+
+		logger.debug("--- Division NFC West ---");
+		for (Team t : teams) {
+			if (!DIVISION.NFC_WEST.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+		
+		logger.debug("--- Division NFC South ---");
+		for (Team t : teams) {
+			if (!DIVISION.NFC_SOUTH.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		logger.debug("--- Division NFC North ---");
+		for (Team t : teams) {
+			if (!DIVISION.NFC_NORTH.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
+
+		logger.debug("--- Division NFC East ---");
+		for (Team t : teams) {
+			if (!DIVISION.NFC_EAST.equals(t.getDivision())) {
+				continue;
+			}
+			logger.debug(t.getAbbrFixed() + " " + t.getPCT());
+		}
 
 		color = -1;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.NFC_WEST)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -349,14 +462,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = -1;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.NFC_SOUTH)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -367,14 +484,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = -1;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.NFC_NORTH)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -385,14 +506,18 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 		color = -1;
 		matched = 0;
 
-		lastpct = 23.42;
+		lastpct = -3.0;
 		for (Team t : getTeam(DIVISION.NFC_EAST)) {
 			if (lastpct == t.getPCT()) {
 				matched++;
@@ -403,25 +528,58 @@ public class Teams {
 			}
 			lastpct = t.getPCT();
 			data_division[pos] = t.getId().byteValue();
-			data_division[pos + 35] = preset[color];
+			if (t.getGamesPlayed() > 0) {
+				data_division[pos + 35] = preset[color];
+			} else {
+				data_division[pos + 35] = (byte) 0;
+			}
 			pos++;
 		}
 
 	}
-	
+
 	private void updatePlayoffs() {
 		Collections.sort(teams, new Comparator<Team>() {
 			@Override
 			public int compare(Team t1, Team t2) {
-				return t1.getId().compareTo(t2.getId());
+				return t1.getAbbr().compareTo(t2.getAbbr());
 			}
 		});
 
+		logger.debug("--- Playoff AFC ---");
+		for (Team t : teams) {
+			if (!CONFERENCE.AFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.NOT_QUALIFIED.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("- " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+		for (Team t : teams) {
+			if (!CONFERENCE.AFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.KICKED_OUT.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("x " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+		for (Team t : teams) {
+			if (!CONFERENCE.AFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.COMPETING.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("+ " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+				
 		for (int i = 0; i < 72; i++) {
 			data_playoffs[i] = 0;
 		}
-		data_playoffs[0] = 'P';		
-		data_playoffs[71] = '\n';		
+		data_playoffs[0] = 'P';
+		data_playoffs[71] = '\n';
 
 		int pos = 1;
 
@@ -455,10 +613,39 @@ public class Teams {
 		Collections.sort(teams, new Comparator<Team>() {
 			@Override
 			public int compare(Team t1, Team t2) {
-				return t2.getId().compareTo(t1.getId());
+				return t2.getAbbr().compareTo(t1.getAbbr());
 			}
 		});
 
+		logger.debug("--- Playoff NFC ---");
+		for (Team t : teams) {
+			if (!CONFERENCE.NFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.COMPETING.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("+ " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+		for (Team t : teams) {
+			if (!CONFERENCE.NFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.KICKED_OUT.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("x " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+		for (Team t : teams) {
+			if (!CONFERENCE.NFC.equals(t.getConference())) {
+				continue;
+			}
+			if (!PLAYOFF.NOT_QUALIFIED.equals(t.getPlayoff())) {
+				continue;
+			}
+			logger.debug("- " + t.getAbbrFixed() + " " + t.getPCT());
+		}
+		
 		for (Team t : getTeam(CONFERENCE.NFC)) {
 			if (PLAYOFF.COMPETING.equals(t.getPlayoff())) {
 				data_playoffs[pos] = t.getId().byteValue();

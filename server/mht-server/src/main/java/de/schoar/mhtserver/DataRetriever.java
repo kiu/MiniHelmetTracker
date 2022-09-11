@@ -10,9 +10,14 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -39,9 +44,17 @@ public class DataRetriever extends Thread {
 
 	Logger logger = LoggerFactory.getLogger(DataRetriever.class);
 
+	public static enum POLL {
+		OFF, ON, AUTO;
+	}
+
 	private boolean running = true;
 
 	private boolean updateFailed = true;
+
+	private POLL adminPoll = POLL.AUTO;
+
+	private boolean updateOnce = true;
 
 	@Autowired
 	protected Teams teams;
@@ -54,16 +67,28 @@ public class DataRetriever extends Thread {
 	@Override
 	public void run() {
 		logger.info("Starting data retriever...");
+
 		while (running) {
-			if (shouldOn()) {
+			if (updateOnce) {
+				updateOnce = false;
 				update();
+			} else if (POLL.ON.equals(adminPoll)) {
+				update();
+			} else if (POLL.AUTO.equals(adminPoll)) {
+				if (shouldOn()) {
+					update();
+				} else {
+					logger.debug("Sleeping. We are in the off hours.");
+				}
 			} else {
-				logger.debug("Sleeping we are in the off hours.");
+				logger.debug("Sleeping. Admin disabled polling.");
 			}
+
 			try {
 				Thread.sleep(Config.UPDATE_INTERVAL);
 			} catch (Exception e) {
 			}
+
 		}
 	}
 
@@ -72,8 +97,13 @@ public class DataRetriever extends Thread {
 		running = false;
 		logger.info("Shutting down...");
 		try {
+			notifyAll();
 		} catch (Exception e) {
 		}
+	}
+
+	public void setAdminPoll(POLL adminPoll) {
+		this.adminPoll = adminPoll;
 	}
 
 	public boolean isUpdateFailed() {
@@ -90,6 +120,68 @@ public class DataRetriever extends Thread {
 		} else {
 			return !(h >= Config.DARK && h < Config.LIGHT);
 		}
+	}
+
+	private void update() {
+		logger.debug("Updating data...");
+
+		// Pre September
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2021-2022-regular/games.xml?force=false
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2021-2022-regular/date/20210908/games.xml
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-playoff/games.xml?force=false
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-playoff/date/20220116/games.xml
+
+		// Post September
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-2023-regular/games.xml?force=false
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-2023-regular/date/20220908/games.xml
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2023-playoff/games.xml?force=false
+		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2023-playoff/date/20220116/games.xml
+
+		String base = "https://api.mysportsfeeds.com/v2.1/pull/nfl";
+		String seasonRegular = urlSeason(true);
+		String seasonPlayoff = urlSeason(false);
+		String day = urlDate();
+
+		boolean success = true;
+		boolean result;
+
+		Teams tmpteams = new Teams();
+
+		List<String> ids = new LinkedList<String>();
+
+		NodeList regularDay = downloadToNodelist(base + "/" + seasonRegular + "/date/" + day + "/games.xml?force=false",
+				"mht-regular-day.xml");
+		result = parseRegular(regularDay, tmpteams, ids);
+		if (!result) {
+			success = false;
+		}
+
+		NodeList regularAll = downloadToNodelist(base + "/" + seasonRegular + "/games.xml?force=false",
+				"mht-regular-all.xml");
+		result = parseRegular(regularAll, tmpteams, ids);
+		if (!result) {
+			success = false;
+		}
+
+		ids.clear();
+
+		NodeList playoffDay = downloadToNodelist(base + "/" + seasonPlayoff + "/date/" + day + "/games.xml?force=false",
+				"mht-playoff-day.xml");
+		result = parsePlayoff(playoffDay, tmpteams, ids);
+		if (!result) {
+			success = false;
+		}
+
+		NodeList playoffAll = downloadToNodelist(base + "/" + seasonPlayoff + "/games.xml?force=false",
+				"mht-playoff-all.xml");
+		result = parsePlayoff(playoffAll, tmpteams, ids);
+		if (!result) {
+			success = false;
+		}
+
+		updateFailed = !success;
+		teams.setTeams(tmpteams.getTeams());
+		logger.debug("...done.");
 	}
 
 	private String fixScore(String score) {
@@ -111,161 +203,6 @@ public class DataRetriever extends Thread {
 		team.setPlayoff(playoff);
 	}
 
-	private void update() {
-		logger.debug("Updating data...");
-
-		boolean success = true;
-
-		Teams tmpteams = new Teams();
-
-		NodeList nodes;
-
-		nodes = downloadAndParse(true);
-		if (nodes != null) {
-			try {
-				XPath xPath = XPathFactory.newInstance().newXPath();
-				for (int i = 0; i < nodes.getLength(); i++) {
-					String homeAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/homeTeam/abbreviation");
-					String awayAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/awayTeam/abbreviation");
-
-					Team home = tmpteams.getTeam(homeAbbr);
-					Team away = tmpteams.getTeam(awayAbbr);
-
-					if (home == null) {
-						logger.warn("Could not find home team " + homeAbbr);
-						success = false;
-						continue;
-					}
-
-					if (away == null) {
-						logger.warn("Could not find away team " + awayAbbr);
-						success = false;
-						continue;
-					}
-
-					String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
-					String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
-
-					Integer as = toInt(awayScore);
-					Integer hs = toInt(homeScore);
-
-					if (as == null || hs == null) {
-						continue;
-					}
-					
-					if (Config.COUNT_INCOMPLETE_GAMES) {
-						if (hs == 0 && as == 0) {
-							continue;
-						}
-					} else {
-						String status = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/playedStatus");
-						if (!"COMPLETED".equals(status)) {
-							continue;
-						}
-					}
-
-					if (hs > as) {
-						home.gameWon();
-						away.gameLost();
-					}
-
-					if (hs == as) {
-						home.gameTied();
-						away.gameTied();
-					}
-
-					if (hs < as) {
-						home.gameLost();
-						away.gameWon();
-					}
-
-					logger.debug("Regular Game: " + home.getAbbrFixed() + " (" + fixScore(homeScore) + ") vs. "
-							+ away.getAbbrFixed() + " (" + fixScore(awayScore) + ")");
-				}
-			} catch (Exception e) {
-				logger.warn("Failed to parse regular games", e);
-				success = false;
-			}
-		} else {
-			logger.warn("No list available for regular season.");
-			success = false;
-		}
-
-		nodes = downloadAndParse(false);
-		if (nodes != null) {
-			try {
-				XPath xPath = XPathFactory.newInstance().newXPath();
-				for (int i = 0; i < nodes.getLength(); i++) {
-
-					String homeAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/homeTeam/abbreviation");
-					String awayAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/awayTeam/abbreviation");
-
-					Team home = tmpteams.getTeam(homeAbbr);
-					Team away = tmpteams.getTeam(awayAbbr);
-
-					if (home == null) {
-						logger.warn("Could not find home team " + homeAbbr);
-						success = false;
-						continue;
-					}
-
-					if (away == null) {
-						logger.warn("Could not find away team " + awayAbbr);
-						success = false;
-						continue;
-					}
-
-					setPlayoffIfNotKickedOut(home, PLAYOFF.COMPETING);
-					setPlayoffIfNotKickedOut(away, PLAYOFF.COMPETING);
-
-					String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
-					String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
-
-					Integer as = toInt(awayScore);
-					Integer hs = toInt(homeScore);
-
-					if (as == null || hs == null) {
-						continue;
-					}
-
-					if (Config.COUNT_INCOMPLETE_GAMES) {
-						if (hs == 0 && as == 0) {
-							continue;
-						}
-					} else {
-						String status = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/playedStatus");
-						if (!"COMPLETED".equals(status)) {
-							continue;
-						}
-					}
-
-					if (hs > as) {
-						setPlayoffIfNotKickedOut(home, PLAYOFF.COMPETING);
-						setPlayoffIfNotKickedOut(away, PLAYOFF.KICKED_OUT);
-					}
-
-					if (hs < as) {
-						setPlayoffIfNotKickedOut(home, PLAYOFF.KICKED_OUT);
-						setPlayoffIfNotKickedOut(away, PLAYOFF.COMPETING);
-					}
-
-					logger.debug("Playoff Game: " + home.getAbbrFixed() + " (" + fixScore(homeScore) + ") vs. "
-							+ away.getAbbrFixed() + " (" + fixScore(awayScore) + ")");
-				}
-			} catch (Exception e) {
-				logger.warn("Failed to parse playoff games", e);
-				success = false;
-			}
-		} else {
-			logger.warn("No list available for playoff season.");
-			//success = false;
-		}
-
-		updateFailed = !success;
-		teams.setTeams(tmpteams.getTeams());
-		logger.debug("...done.");
-	}
-
 	private Integer toInt(String value) {
 		if (value == null || value.trim().length() == 0) {
 			return null;
@@ -276,9 +213,197 @@ public class DataRetriever extends Thread {
 			return null;
 		}
 	}
-	
-	private NodeList downloadAndParse(boolean regular) {
-		String xml = download(regular);
+
+	private boolean parseRegular(NodeList nodes, Teams tmpteams, List<String> ids) {
+		if (nodes == null) {
+			logger.warn("No list available for regular season.");
+			return false;
+		}
+		if (nodes.getLength() == 0) {
+			logger.debug("List is empty for regular season.");
+			return true;
+
+		}
+
+		boolean success = true;
+
+		try {
+			XPath xPath = XPathFactory.newInstance().newXPath();
+			for (int i = 0; i < nodes.getLength(); i++) {
+
+				String id = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/id");
+				if (id == null || id.trim().length() == 0) {
+					logger.debug("Game without id.");
+					continue;
+				}
+				if (ids.contains(id)) {
+					continue;
+				}
+				ids.add(id);
+
+				String homeAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/homeTeam/abbreviation");
+				String awayAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/awayTeam/abbreviation");
+
+				Team home = tmpteams.getTeam(homeAbbr);
+				Team away = tmpteams.getTeam(awayAbbr);
+
+				if (home == null) {
+					logger.warn("Could not find home team " + homeAbbr);
+					success = false;
+					continue;
+				}
+
+				if (away == null) {
+					logger.warn("Could not find away team " + awayAbbr);
+					success = false;
+					continue;
+				}
+
+				String status = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/playedStatus");
+				if (Config.COUNT_INCOMPLETE_GAMES) {
+					if ("UNPLAYED".equals(status)) {
+						continue;
+					}
+				} else {
+					if (!"COMPLETED".equals(status)) {
+						continue;
+					}
+				}
+
+				String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
+				String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
+
+				Integer as = toInt(awayScore);
+				Integer hs = toInt(homeScore);
+
+				if (as == null || hs == null) {
+					continue;
+				}
+
+				if (hs.intValue() > as.intValue()) {
+					home.gameWon();
+					away.gameLost();
+				}
+
+				if (hs.intValue() == as.intValue()) {
+					home.gameTied();
+					away.gameTied();
+				}
+
+				if (hs.intValue() < as.intValue()) {
+					home.gameLost();
+					away.gameWon();
+				}
+
+				logger.debug("Regular Game: " + home.getAbbrFixed() + " (" + fixScore(homeScore) + ") vs. "
+						+ away.getAbbrFixed() + " (" + fixScore(awayScore) + ")");
+			}
+		} catch (Exception e) {
+			logger.warn("Failed to parse regular games", e);
+			return false;
+		}
+
+		return success;
+	}
+
+	private boolean parsePlayoff(NodeList nodes, Teams tmpteams, List<String> ids) {
+		if (nodes == null) {
+			logger.warn("No list available for playoff season.");
+			return true;
+		}
+		if (nodes.getLength() == 0) {
+			logger.debug("List is empty for playoff season.");
+			return true;
+
+		}
+
+		boolean success = true;
+
+		try {
+			XPath xPath = XPathFactory.newInstance().newXPath();
+			for (int i = 0; i < nodes.getLength(); i++) {
+
+				String id = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/id");
+				if (id == null || id.trim().length() == 0) {
+					logger.debug("Game without id.");
+					continue;
+				}
+				if (ids.contains(id)) {
+					continue;
+				}
+				ids.add(id);
+
+				String homeAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/homeTeam/abbreviation");
+				String awayAbbr = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/awayTeam/abbreviation");
+
+				Team home = tmpteams.getTeam(homeAbbr);
+				Team away = tmpteams.getTeam(awayAbbr);
+
+				if (home == null) {
+					logger.warn("Could not find home team " + homeAbbr);
+					success = false;
+					continue;
+				}
+
+				if (away == null) {
+					logger.warn("Could not find away team " + awayAbbr);
+					success = false;
+					continue;
+				}
+
+				setPlayoffIfNotKickedOut(home, PLAYOFF.COMPETING);
+				setPlayoffIfNotKickedOut(away, PLAYOFF.COMPETING);
+
+				String status = xpathNodeOrEmpty(xPath, nodes.item(i), "schedule/playedStatus");
+				if (Config.COUNT_INCOMPLETE_GAMES) {
+					if ("UNPLAYED".equals(status)) {
+						continue;
+					}
+				} else {
+					if (!"COMPLETED".equals(status)) {
+						continue;
+					}
+				}
+
+				String awayScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/awayScoreTotal");
+				String homeScore = xpathNodeOrEmpty(xPath, nodes.item(i), "score/homeScoreTotal");
+
+				Integer as = toInt(awayScore);
+				Integer hs = toInt(homeScore);
+
+				if (as == null || hs == null) {
+					continue;
+				}
+
+				if (hs.intValue() > as.intValue()) {
+					setPlayoffIfNotKickedOut(home, PLAYOFF.COMPETING);
+					setPlayoffIfNotKickedOut(away, PLAYOFF.KICKED_OUT);
+				}
+
+				if (hs.intValue() == as.intValue()) {
+					setPlayoffIfNotKickedOut(home, PLAYOFF.COMPETING);
+					setPlayoffIfNotKickedOut(away, PLAYOFF.COMPETING);
+				}
+
+				if (hs.intValue() < as.intValue()) {
+					setPlayoffIfNotKickedOut(home, PLAYOFF.KICKED_OUT);
+					setPlayoffIfNotKickedOut(away, PLAYOFF.COMPETING);
+				}
+
+				logger.debug("Playoff Game: " + home.getAbbrFixed() + " (" + fixScore(homeScore) + ") vs. "
+						+ away.getAbbrFixed() + " (" + fixScore(awayScore) + ")");
+			}
+		} catch (Exception e) {
+			logger.warn("Failed to parse playoff games", e);
+			return false;
+		}
+
+		return success;
+	}
+
+	private NodeList downloadToNodelist(String url, String local) {
+		String xml = download(url, local);
+
 		if (xml == null) {
 			return null;
 		}
@@ -297,19 +422,19 @@ public class DataRetriever extends Thread {
 		}
 	}
 
-	private String buildURL(boolean regular) {
-		// Pre September
-		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2021-2022-regular/games.xml?force=false
-		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-playoff/games.xml?force=false
+	private String urlDate() {
+		Calendar now = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
+		if (now.get(Calendar.HOUR_OF_DAY) < 8) {
+			now.roll(Calendar.DATE, false);
+		}
+		Date time = now.getTime();
+		SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
+		return format.format(time);
+	}
 
-		// Post September
-		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2022-2023-regular/games.xml?force=false
-		// https://api.mysportsfeeds.com/v2.1/pull/nfl/2023-playoff/games.xml?force=false
-
-		String url = "https://api.mysportsfeeds.com/v2.1/pull/nfl";
-
-		Calendar now = Calendar.getInstance(Locale.GERMANY);
-		Calendar sept = Calendar.getInstance(Locale.GERMANY);
+	private String urlSeason(boolean regular) {
+		Calendar now = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
+		Calendar sept = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
 		sept.set(now.get(Calendar.YEAR), 8, 1);
 
 		int from = now.get(Calendar.YEAR);
@@ -321,20 +446,17 @@ public class DataRetriever extends Thread {
 		}
 
 		if (regular) {
-			url += "/" + from + "-" + to + "-regular";
+			return from + "-" + to + "-regular";
 		} else {
-			url += "/" + to + "-playoff";
+			return to + "-playoff";
 		}
-
-		url += "/games.xml?force=false";
-		return url;
 	}
 
-	private String download(boolean regular) {
+	private String download(String urlstr, String local) {
 		if (Config.LOCAL_LOAD) {
 			try {
-				logger.warn("Using local file istead of the web request.");
-				return new String(Files.readAllBytes(Paths.get(regular + ".xml")), StandardCharsets.UTF_8);
+				logger.warn("Using local file istead of the web request: " + local);
+				return new String(Files.readAllBytes(Paths.get(local)), StandardCharsets.UTF_8);
 			} catch (IOException e) {
 				logger.warn("Local file not available.", e);
 				return null;
@@ -342,8 +464,9 @@ public class DataRetriever extends Thread {
 		}
 
 		URL url = null;
+
 		try {
-			url = new URL(buildURL(regular));
+			url = new URL(urlstr);
 			logger.debug("Downloading: " + url);
 
 			String encoding = Base64.getEncoder().encodeToString((Config.APIKEY + ":MYSPORTSFEEDS").getBytes());
@@ -364,15 +487,17 @@ public class DataRetriever extends Thread {
 			in.close();
 
 			if (Config.LOCAL_SAVE) {
-				logger.warn("Storing received data on local filesystem.");
-				FileOutputStream fos = new FileOutputStream(regular + ".xml");
+				logger.warn("Storing received data on local filesystem: " + local);
+				FileOutputStream fos = new FileOutputStream(local);
 				fos.write(sb.toString().getBytes());
 				fos.close();
 			}
 
+			Thread.sleep(1000);
+
 			return sb.toString();
 		} catch (Exception e) {
-			logger.warn("Failed to download: " + url, e);
+			logger.warn("Failed to download: " + url);
 			return null;
 		}
 	}

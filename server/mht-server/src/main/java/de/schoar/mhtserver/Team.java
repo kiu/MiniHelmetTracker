@@ -25,7 +25,7 @@ public class Team {
 	@SuppressWarnings("unused")
 	private int gamesLost = 0;
 
-	private Double pct = 0.0;
+	private Double pct = -1.0;
 	private PLAYOFF playoff = PLAYOFF.NOT_QUALIFIED;
 
 	public Team(int id, String abbr, CONFERENCE conference, DIVISION division) {
@@ -50,6 +50,10 @@ public class Team {
 		return abbr;
 	}
 
+	public int getGamesPlayed() {
+		return gamesPlayed;
+	}
+
 	public CONFERENCE getConference() {
 		return conference;
 	}
@@ -64,7 +68,7 @@ public class Team {
 
 	private void updatePCT() {
 		if (gamesPlayed == 0) {
-			this.pct = 0.0;
+			this.pct = -1.0;
 			return;
 		}
 		this.pct = ((double) gamesWon + (0.5 * (double) gamesTied)) / (double) gamesPlayed;
