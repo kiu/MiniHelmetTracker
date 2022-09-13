@@ -6,8 +6,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Calendar;
-import java.util.TimeZone;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -111,18 +109,6 @@ public class DataServer extends Thread {
 			Thread.sleep(500);
 		}
 
-		@SuppressWarnings("unused")
-		private boolean shouldOn() {
-			Calendar now = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
-			int h = now.get(Calendar.HOUR_OF_DAY);
-
-			if (Config.DARK > Config.LIGHT) {
-				return h >= Config.LIGHT && h < Config.DARK;
-			} else {
-				return !(h >= Config.DARK && h < Config.LIGHT);
-			}
-		}
-
 		public void run() {
 			if (teams == null) {
 				logger.warn("No teams available. Closing.");
@@ -135,7 +121,7 @@ public class DataServer extends Thread {
 			admin[0] = 'A';
 
 			if (LED.AUTO.equals(adminLed)) {
-				if (shouldOn()) {
+				if (Config.isAwake()) {
 					admin[1] = (byte) 1;
 				} else {
 					admin[1] = (byte) 0;

@@ -16,7 +16,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.TimeZone;
 
 import javax.annotation.PostConstruct;
@@ -75,7 +74,7 @@ public class DataRetriever extends Thread {
 			} else if (POLL.ON.equals(adminPoll)) {
 				update();
 			} else if (POLL.AUTO.equals(adminPoll)) {
-				if (shouldOn()) {
+				if (Config.isAwake()) {
 					update();
 				} else {
 					logger.debug("Sleeping. We are in the off hours.");
@@ -108,18 +107,6 @@ public class DataRetriever extends Thread {
 
 	public boolean isUpdateFailed() {
 		return updateFailed;
-	}
-
-	@SuppressWarnings("unused")
-	private boolean shouldOn() {
-		Calendar now = Calendar.getInstance(Locale.GERMANY);
-		int h = now.get(Calendar.HOUR_OF_DAY);
-
-		if (Config.DARK > Config.LIGHT) {
-			return h >= Config.LIGHT && h < Config.DARK;
-		} else {
-			return !(h >= Config.DARK && h < Config.LIGHT);
-		}
 	}
 
 	private void update() {

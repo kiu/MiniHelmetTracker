@@ -41,7 +41,7 @@ public class AdminController {
 	// 2: Auto based on time
 	// curl -s localhost:8080/mht-server/admin/poll/<int>
 	public void awake(@PathVariable("value") int value) {
-		logger.info("Requested to change awake to: " + value);
+		logger.info("Requested to change poll to: " + value);
 		try {
 			retriever.setAdminPoll(DataRetriever.POLL.values()[value]);
 		} catch (Exception e) {

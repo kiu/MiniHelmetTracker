@@ -1,5 +1,8 @@
 package de.schoar.mhtserver;
 
+import java.util.Calendar;
+import java.util.TimeZone;
+
 public class Config {
 
 	public static final String APIKEY = "secret";
@@ -15,5 +18,16 @@ public class Config {
 	public static final int LIGHT = 9;
 	
 	public static final int PORT = 2207;
-	
+		
+	@SuppressWarnings("unused")
+	public static boolean isAwake() {
+		Calendar now = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
+		int h = now.get(Calendar.HOUR_OF_DAY);
+
+		if (Config.DARK > Config.LIGHT) {
+			return h >= Config.LIGHT && h < Config.DARK;
+		} else {
+			return !(h >= Config.DARK && h < Config.LIGHT);
+		}
+	}
 }

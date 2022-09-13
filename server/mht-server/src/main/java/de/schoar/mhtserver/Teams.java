@@ -196,7 +196,7 @@ public class Teams {
 		}
 	
 		pos = 2;
-		color = 35;
+		color = 34;
 		matched = 0;
 
 		lastpct = -3.0;
